@@ -13,7 +13,7 @@ import java.util.Collection;
 @RestController
 @RequestMapping("/users")
 public class UserController {
-    private final static Logger log = LoggerFactory.getLogger(UserController.class);
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
     private final UserRepository userRepository;
     private final ValidationService validationService;
 
