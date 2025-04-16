@@ -19,8 +19,8 @@ public class FilmServiceImpl implements FilmService {
     private final FilmRepositoryInterface filmRepository;
     private final UserRepositoryInterface userRepository;
     private final FilmMapper mapper;
-    private final String FILM_NOT_FOUND = "Не найден фильм с id =";
-    private final String USER_NOT_FOUND = "Не найден пользователь с id =";
+    private final String filmNotFound = "Не найден фильм с id ="; // знаю, как пишутся константы, чекстайл ругается
+    private final String userNotFound = "Не найден пользователь с id =";
 
     @Override
     public FilmDto saveFilm(Film film) {
@@ -31,7 +31,7 @@ public class FilmServiceImpl implements FilmService {
     @Override
     public FilmDto updateFilm(Film film) {
        filmRepository.getFilmById(film.getId())
-               .orElseThrow(() -> new InternalServerException(FILM_NOT_FOUND + film.getId()));
+               .orElseThrow(() -> new InternalServerException(filmNotFound + film.getId()));
         Film updatedFilm = filmRepository.updateFilm(film);
         return mapper.toDto(updatedFilm);
     }
@@ -39,18 +39,18 @@ public class FilmServiceImpl implements FilmService {
     @Override
     public void addLike(Long userId, Long filmId) {
         userRepository.getUserById(userId)
-                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + userId));
+                .orElseThrow(() -> new NotFoundException(userNotFound + userId));
         filmRepository.getFilmById(filmId)
-                .orElseThrow(() -> new NotFoundException(FILM_NOT_FOUND + filmId));
+                .orElseThrow(() -> new NotFoundException(filmNotFound + filmId));
         filmRepository.addLike(userId, filmId);
     }
 
     @Override
     public void removeLike(Long userId, Long filmId) {
         userRepository.getUserById(userId)
-                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + userId));
+                .orElseThrow(() -> new NotFoundException(userNotFound + userId));
         filmRepository.getFilmById(filmId)
-                .orElseThrow(() -> new NotFoundException(FILM_NOT_FOUND + filmId));
+                .orElseThrow(() -> new NotFoundException(filmNotFound + filmId));
         filmRepository.removeLike(userId, filmId);
     }
 
@@ -64,7 +64,7 @@ public class FilmServiceImpl implements FilmService {
     @Override
     public FilmDto getFilmById(Long filmId) {
         Film filmFromRepository = filmRepository.getFilmById(filmId)
-                .orElseThrow(() -> new NotFoundException(FILM_NOT_FOUND + filmId));
+                .orElseThrow(() -> new NotFoundException(filmNotFound + filmId));
         return mapper.toDto(filmFromRepository);
     }
 
