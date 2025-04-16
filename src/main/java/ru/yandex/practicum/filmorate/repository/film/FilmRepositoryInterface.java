@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FilmRepositoryInterface {
-    void saveFilm(Film film);
+    Film saveFilm(Film film);
 
     Film updateFilm(Film film);
 
@@ -19,4 +19,6 @@ public interface FilmRepositoryInterface {
     void removeLike(Long userId, Long filmId);
 
     List<Film> getTheMostPopularFilms(Integer count);
+
+    List<Long> getLikes(Long filmId);
 }

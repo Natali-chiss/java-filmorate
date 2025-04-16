@@ -1,57 +1,57 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import ru.yandex.practicum.filmorate.dto.UserDto;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.repository.user.UserRepository;
 import ru.yandex.practicum.filmorate.service.user.UserService;
 import ru.yandex.practicum.filmorate.service.validation.ValidationService;
 
-import java.util.Collection;
 import java.util.List;
 
 @RestController
 @RequestMapping("/users")
 @Slf4j
+@RequiredArgsConstructor
 public class UserController {
-    private final UserRepository userRepository;
     private final ValidationService validationService;
     private final UserService userService;
 
-    @Autowired
-    public UserController(UserRepository userRepository, ValidationService validationService, UserService userService) {
-        this.userRepository = userRepository;
-        this.validationService = validationService;
-        this.userService = userService;
-    }
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public User createUser(@RequestBody User user) {
+    public UserDto createUser(@RequestBody User user) {
         log.info("Получен запрос на создание пользователя");
         validationService.validateCreate(user);
-        userRepository.saveUser(user);
-        log.info("Создан новый пользователь: {}", user);
-        return user;
+        UserDto savedUser = userService.saveUser(user);
+        log.info("Создан новый пользователь: {}", savedUser);
+        return savedUser;
     }
 
     @PutMapping
     @ResponseStatus(HttpStatus.OK)
-    public User updateUser(@RequestBody User user) {
+    public UserDto updateUser(@RequestBody User user) {
         log.info("Получен запрос на обновление пользователя");
         validationService.validateUpdate(user);
-        User updatedUser = userRepository.updateUser(user);
+        UserDto updatedUser = userService.updateUser(user);
         log.info("Обновление пользователя завершено: {}", user);
         return updatedUser;
     }
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public Collection<User> getAllUsers() {
+    public List<UserDto> getAllUsers() {
         log.info("Получен запрос на получение списка пользователей");
-        return userRepository.getAllUsers();
+        return userService.getAllUsers();
     }
 
     @PutMapping("/{userId}/friends/{friendId}")
@@ -74,16 +74,16 @@ public class UserController {
 
     @GetMapping("/{userId}/friends")
     @ResponseStatus(HttpStatus.OK)
-    public List<User> getFriendsList(@PathVariable Long userId) {
+    public List<UserDto> getFriendsList(@PathVariable Long userId) {
         log.info("Получен запрос на получение списка друзей у пользователя с id={}", userId);
         return userService.getFriendsList(userId);
     }
 
-    @GetMapping("/{id}/friends/common/{otherId}")
+    @GetMapping("/{id}/friends/common/{friendId}")
     @ResponseStatus(HttpStatus.OK)
-    public List<User> getCommonFriends(@PathVariable Long id,
-                                       @PathVariable Long otherId) {
-        log.info("Получен запрос на получение списка общих друзей у пользователей с id={} и id={}", id, otherId);
-        return userService.getCommonFriends(id, otherId);
+    public List<UserDto> getCommonFriends(@PathVariable Long id,
+                                       @PathVariable Long friendId) {
+        log.info("Получен запрос на получение списка общих друзей у пользователей с id={} и id={}", id, friendId);
+        return userService.getCommonFriends(id, friendId);
     }
 }

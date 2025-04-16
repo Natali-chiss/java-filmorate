@@ -1,57 +1,83 @@
 package ru.yandex.practicum.filmorate.service.user;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.UserDto;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.mapper.UserMapper;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.repository.user.UserRepositoryInterface;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepositoryInterface userRepository;
+    private final UserMapper mapper;
+    private final String USER_NOT_FOUND = "Не найден пользователь с id =";
 
-    @Autowired
-    public UserServiceImpl(UserRepositoryInterface userRepository) {
-        this.userRepository = userRepository;
+    @Override
+    public UserDto saveUser(User user) {
+        User savedUser = userRepository.saveUser(user);
+        return mapper.mapToUserDto(savedUser);
+    }
+
+    @Override
+    public UserDto updateUser(User user) {
+        userRepository.getUserById(user.getId())
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + user.getId()));
+        User updatedUser = userRepository.updateUser(user);
+        return mapper.mapToUserDto(updatedUser);
     }
 
     @Override
     public void addFriend(Long userId, Long friendId) {
         userRepository.getUserById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + userId));
         userRepository.getUserById(friendId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + friendId + " не найден"));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + friendId));
         userRepository.addFriend(userId, friendId);
     }
 
     @Override
     public void deleteFriend(Long userId, Long friendId) {
         userRepository.getUserById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + userId));
         userRepository.getUserById(friendId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + friendId + " не найден"));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + friendId));
         userRepository.deleteFriend(userId, friendId);
     }
 
     @Override
-    public List<User> getCommonFriends(Long user1Id, Long user2Id) {
+    public List<UserDto> getCommonFriends(Long user1Id, Long user2Id) {
         userRepository.getUserById(user1Id)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + user1Id + " не найден"));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + user1Id));
         userRepository.getUserById(user2Id)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + user2Id + " не найден"));
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + user2Id));
         if (user1Id.equals(user2Id)) {
             throw new ConditionsNotMetException("Пользователи должны иметь разные id");
         }
-        return userRepository.getCommonFriends(user1Id, user2Id);
+        return userRepository.getCommonFriends(user1Id, user2Id).stream()
+                .map(mapper::mapToUserDto)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<User> getFriendsList(Long userId) {
+    public List<UserDto> getFriendsList(Long userId) {
         userRepository.getUserById(userId)
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-        return userRepository.getFriendsList(userId);
+                .orElseThrow(() -> new NotFoundException(USER_NOT_FOUND + userId));
+        return userRepository.getFriendsList(userId).stream()
+                .map(mapper::mapToUserDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserDto> getAllUsers() {
+        return userRepository.getAllUsers().stream()
+                .map(mapper::mapToUserDto)
+                .collect(Collectors.toList());
     }
 }
