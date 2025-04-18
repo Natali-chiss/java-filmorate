@@ -1,13 +1,10 @@
 package ru.yandex.practicum.filmorate.controller.error;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
+@AllArgsConstructor
 public class ErrorResponse {
     String error;
-
-    public ErrorResponse(String error) {
-        this.error = error;
-    }
 }
-

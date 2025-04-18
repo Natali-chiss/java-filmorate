@@ -1,33 +1,45 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.service.validation.ValidationServiceImpl;
+import ru.yandex.practicum.filmorate.repository.film.JdbcFilmRepository;
+import ru.yandex.practicum.filmorate.repository.user.JdbcUserRepository;
+import ru.yandex.practicum.filmorate.service.validation.ValidationService;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DisplayName("Сервис валидации")
+@SpringBootTest
+@Import({JdbcUserRepository.class, JdbcFilmRepository.class})
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@ActiveProfiles("test")
 public class ValidationServiceImplTest {
-    private ValidationServiceImpl validationService;
+    private final ValidationService validationService;
     private User user;
     private Film film;
 
     @BeforeEach
     void setUp() {
-        validationService = new ValidationServiceImpl();
-
-        user = new User("valid@email.com", "validLogin", "name",
+        user = new User(1L,"valid@email.com", "validLogin", "name",
                 LocalDate.of(2003, 3, 11));
 
-        film = new Film("valid name", "valid description",
-                LocalDate.of(1999, 1, 1), 90);
+        film = new Film(2L, "valid name", "valid description",
+                LocalDate.of(1999, 1, 1), 90,
+                new ArrayList<>(), new Mpa(1, "G"));
     }
 
     @Test

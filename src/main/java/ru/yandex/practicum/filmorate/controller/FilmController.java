@@ -1,12 +1,21 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import ru.yandex.practicum.filmorate.dto.FilmDto;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.repository.film.FilmRepositoryInterface;
 import ru.yandex.practicum.filmorate.service.film.FilmService;
 import ru.yandex.practicum.filmorate.service.validation.ValidationService;
 
@@ -15,50 +24,41 @@ import java.util.List;
 @RestController
 @RequestMapping("/films")
 @Slf4j
+@RequiredArgsConstructor
 public class FilmController {
-    private final FilmRepositoryInterface filmRepository;
     private final FilmService filmService;
     private final ValidationService validationService;
 
-    @Autowired
-    public FilmController(FilmRepositoryInterface filmRepository, FilmService filmService,
-                          ValidationService validationService) {
-        this.filmRepository = filmRepository;
-        this.filmService = filmService;
-        this.validationService = validationService;
-    }
-
-
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Film addFilm(@RequestBody Film film) {
+    public FilmDto addFilm(@RequestBody Film film) {
         log.info("Получен запрос на добавление фильма");
         validationService.validateCreate(film);
-        filmRepository.saveFilm(film);
+        FilmDto savedFilm = filmService.saveFilm(film);
         log.info("Создан новый фильм: {}", film);
-        return film;
+        return savedFilm;
     }
 
     @PutMapping
     @ResponseStatus(HttpStatus.OK)
-    public Film updateFilm(@RequestBody Film film) {
+    public FilmDto updateFilm(@RequestBody Film film) {
         log.info("Получен запрос на обновление фильма");
         validationService.validateUpdate(film);
-        Film updatedFilm = filmRepository.updateFilm(film);
+        FilmDto updatedFilm = filmService.updateFilm(film);
         log.info("Обновление фильма завершено");
         return updatedFilm;
     }
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<Film> getAllFilms() {
+    public List<FilmDto> getAllFilms() {
         log.info("Получен запрос на получение списка всех фильмов");
-        return filmRepository.getAllFilms();
+        return filmService.getAllFilms();
     }
 
     @GetMapping("/{filmId}")
     @ResponseStatus(HttpStatus.OK)
-    public Film getFilmById(@PathVariable Long filmId) {
+    public FilmDto getFilmById(@PathVariable Long filmId) {
         log.info("Получен запрос на получение фильма с id={}", filmId);
         return filmService.getFilmById(filmId);
     }
@@ -83,7 +83,7 @@ public class FilmController {
 
     @GetMapping("/popular")
     @ResponseStatus(HttpStatus.OK)
-    public List<Film> getTheMostPopularFilms(@RequestParam(required = false, defaultValue = "10") Integer count) {
+    public List<FilmDto> getTheMostPopularFilms(@RequestParam(required = false, defaultValue = "10") Integer count) {
         log.info("Получен запрос на получение {} самых популярных фильмов", count);
         return filmService.getTheMostPopularFilms(count);
     }

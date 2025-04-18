@@ -2,17 +2,16 @@ package ru.yandex.practicum.filmorate.repository.user;
 
 import ru.yandex.practicum.filmorate.model.User;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface UserRepositoryInterface {
 
-    void saveUser(User user);
+    User saveUser(User user);
 
     User updateUser(User user);
 
-    Collection<User> getAllUsers();
+    List<User> getAllUsers();
 
     Optional<User> getUserById(Long id);
 

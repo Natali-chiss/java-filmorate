@@ -1,5 +1,6 @@
 package ru.yandex.practicum.filmorate.service.validation;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
@@ -7,41 +8,29 @@ import ru.yandex.practicum.filmorate.exception.DuplicatedDataException;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.repository.film.FilmRepository;
-import ru.yandex.practicum.filmorate.repository.user.UserRepository;
+import ru.yandex.practicum.filmorate.repository.film.FilmRepositoryInterface;
+import ru.yandex.practicum.filmorate.repository.user.UserRepositoryInterface;
 
 import java.time.LocalDate;
 
 @Service
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class ValidationServiceImpl implements ValidationService {
     private static final int MAX_DESCRIPTION_SIZE = 200;
     private static final LocalDate CINEMA_BIRTHDAY = LocalDate.of(1895, 12, 28);
-    private final UserRepository userRepository;
-    private final FilmRepository filmRepository;
-
-    public ValidationServiceImpl() {
-        this.userRepository = new UserRepository();
-        this.filmRepository = new FilmRepository();
-    }
-
-    @Autowired
-    public ValidationServiceImpl(UserRepository userRepository, FilmRepository filmRepository) {
-        this.userRepository = userRepository;
-        this.filmRepository = filmRepository;
-    }
+    private final UserRepositoryInterface userRepository;
+    private final FilmRepositoryInterface filmRepository;
 
     @Override
     public void validateCreate(User user) {
-        if (user.getEmail() == null || user.getEmail().isBlank()) {
-            throw new ConditionsNotMetException("Email должен быть указан");
-        } else if (!user.getEmail().contains("@")) {
-            throw new ConditionsNotMetException("Email должен содержать символ @");
-        } else if (isEmailUsed(user.getEmail())) {
+        validateEmail(user.getEmail());
+        validateLogin(user.getLogin());
+        validateBirthday(user.getBirthday());
+        if (isEmailUsed(user.getEmail())) {
             throw new DuplicatedDataException("Этот email уже используется");
-        } else if (user.getLogin().isBlank() || user.getLogin().contains(" ")) {
-            throw new ConditionsNotMetException("Логин не может быть пустым и содержать пробелы");
-        } else if (user.getBirthday().isAfter(LocalDate.now())) {
-            throw new ConditionsNotMetException("Дата рождения не может быть в будущем");
+        }
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
         }
     }
 
@@ -50,33 +39,26 @@ public class ValidationServiceImpl implements ValidationService {
         if (user.getId() == null) {
             throw new ConditionsNotMetException("Id должен быть указан");
         }
+
         User userFromRepository = userRepository.getUserById(user.getId())
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + user.getId() + " не найден"));
-        if (!userFromRepository.getEmail().equals(user.getEmail()) && isEmailUsed(user.getEmail())) {
-            throw new DuplicatedDataException("Этот email уже используется");
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден"));
+
+        if (user.getEmail() != null && !userFromRepository.getEmail().equals(user.getEmail())) {
+            validateEmail(user.getEmail());
+            if (isEmailUsed(user.getEmail())) {
+                throw new DuplicatedDataException("Этот email уже используется");
+            }
         }
-        if (user.getEmail() != null && !user.getEmail().contains("@")) {
-            throw new ConditionsNotMetException("Email должен содержать символ @");
-        }
-        if (user.getLogin() != null && user.getLogin().contains(" ")) {
-            throw new ConditionsNotMetException("Логин не может содержать пробелы");
-        }
-        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
-            throw new ConditionsNotMetException("Дата рождения не может быть в будущем");
-        }
+        if (user.getLogin() != null) validateLogin(user.getLogin());
+        if (user.getBirthday() != null) validateBirthday(user.getBirthday());
     }
 
     @Override
     public void validateCreate(Film film) {
-        if (film.getName() == null || film.getName().isBlank()) {
-            throw new ConditionsNotMetException("Название должно быть указано");
-        } else if (film.getDescription().length() > 200) {
-            throw new ConditionsNotMetException("Максимальная длина описания — " + MAX_DESCRIPTION_SIZE);
-        } else if (film.getReleaseDate().isBefore(CINEMA_BIRTHDAY)) {
-            throw new ConditionsNotMetException("Дата релиза дожна быть не раньше 28 декабря 1895 года");
-        } else if (film.getDuration() <= 0) {
-            throw new ConditionsNotMetException("Продолжительность фильма должна быть положительным числом");
-        }
+        validateFilmName(film.getName());
+        validateDescription(film.getDescription());
+        validateReleaseDate(film.getReleaseDate());
+        validateDuration(film.getDuration());
     }
 
     @Override
@@ -84,22 +66,68 @@ public class ValidationServiceImpl implements ValidationService {
         if (film.getId() == null) {
             throw new ConditionsNotMetException("Id должен быть указан");
         }
-        if (filmRepository.getFilmById(film.getId()).isEmpty()) {
-            throw new NotFoundException("Фильм с id = " + film.getId() + " не найден");
+
+        filmRepository.getFilmById(film.getId())
+                .orElseThrow(() -> new NotFoundException("Фильм не найден"));
+
+        if (film.getDescription() != null) {
+            validateDescription(film.getDescription());
         }
-        if (film.getDescription() != null && film.getDescription().length() > MAX_DESCRIPTION_SIZE) {
+        if (film.getDuration() != 0) {
+            validateDuration(film.getDuration());
+        }
+        if (film.getReleaseDate() != null) {
+            validateReleaseDate(film.getReleaseDate());
+        }
+    }
+
+    private void validateEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new ConditionsNotMetException("Email должен быть указан");
+        }
+        if (!email.contains("@")) {
+            throw new ConditionsNotMetException("Email должен содержать символ @");
+        }
+    }
+
+    private void validateLogin(String login) {
+        if (login == null || login.isBlank() || login.contains(" ")) {
+            throw new ConditionsNotMetException("Логин не может быть пустым и содержать пробелы");
+        }
+    }
+
+    private void validateBirthday(LocalDate birthday) {
+        if (birthday.isAfter(LocalDate.now())) {
+            throw new ConditionsNotMetException("Дата рождения не может быть в будущем");
+        }
+    }
+
+    private void validateFilmName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new ConditionsNotMetException("Название фильма должно быть указано");
+        }
+    }
+
+    private void validateDescription(String description) {
+        if (description != null && description.length() > MAX_DESCRIPTION_SIZE) {
             throw new ConditionsNotMetException("Максимальная длина описания — " + MAX_DESCRIPTION_SIZE);
         }
-        if (film.getDuration() != 0 && film.getDuration() < 0) {
-            throw new ConditionsNotMetException("Продолжительность фильма должна быть положительным числом");
-        }
-        if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(CINEMA_BIRTHDAY)) {
-            throw new ConditionsNotMetException("Дата релиза дожна быть не раньше 28 декабря 1895 года");
+    }
+
+    private void validateDuration(int duration) {
+        if (duration <= 0) {
+            throw new ConditionsNotMetException("Продолжительность должна быть положительным числом");
         }
     }
 
     private boolean isEmailUsed(String email) {
         return userRepository.getAllUsers().stream()
                 .anyMatch(user -> user.getEmail().equals(email));
+    }
+
+    private void validateReleaseDate(LocalDate releaseDate) {
+        if (releaseDate.isBefore(CINEMA_BIRTHDAY)) {
+            throw new ConditionsNotMetException(String.format("Дата релиза должна быть не раньше %s", CINEMA_BIRTHDAY));
+        }
     }
 }
