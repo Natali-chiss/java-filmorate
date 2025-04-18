@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.repository.genre.GenreRepositoryInterface;
 
@@ -32,7 +31,6 @@ public class GenreController {
     @ResponseStatus(HttpStatus.OK)
     public Genre getGenreById(@PathVariable int id) {
         log.info("Получен запрос на получение жанра с id={}", id);
-        return genreRepository.getById(id)
-                .orElseThrow(() -> new NotFoundException("Жанр с id=" + id + " не найден"));
+        return genreRepository.getById(id);
     }
 }

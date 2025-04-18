@@ -21,7 +21,14 @@ import java.util.Optional;
 @Repository
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
 public class JdbcUserRepository implements UserRepositoryInterface {
-    private static final String GET_USER_BY_ID = "SELECT * FROM users WHERE user_id = :id";
+    private static final String GET_USER_BY_ID = """
+            SELECT
+                user_id,
+                email,
+                login,
+                name,
+                birthday
+            FROM users WHERE user_id = :id""";
     private static final String INSERT_USER = """
             INSERT INTO users (email, login, name, birthday)
             VALUES (:email, :login, :name, :birthday)
@@ -34,22 +41,46 @@ public class JdbcUserRepository implements UserRepositoryInterface {
                 birthday = :birthday
             WHERE user_id = :id
             """;
-    private static final String GET_ALL_USERS = "SELECT * FROM users";
+    private static final String GET_ALL_USERS = """
+            SELECT
+                user_id,
+                email,
+                login,
+                name,
+                birthday
+            FROM users""";
     private static final String ADD_FRIEND = """
             INSERT INTO friends(user_id, friend_id)
             VALUES (:userId, :friendId)
             """;
     private static final String GET_COMMON_FRIENDS = """
-            SELECT u.* FROM users u
+            SELECT
+                u.user_id,
+                u.email,
+                u.login,
+                u.name,
+                u.birthday
+            FROM users u
             JOIN friends f1 ON u.user_id = f1.friend_id
             JOIN friends f2 ON u.user_id = f2.friend_id
             WHERE f1.user_id = :userId AND f2.user_id = :friendId
             """;
     private static final String GET_FRIENDS_LIST = """
-            SELECT u.* FROM users u
+            SELECT
+                u.user_id,
+                u.email,
+                u.login,
+                u.name,
+                u.birthday
+            FROM users u
             JOIN friends f ON u.user_id = f.friend_id
             WHERE f.user_id = :userId
             """;
+    private static final String DELETE_FRIEND = """
+            DELETE FROM friends
+            WHERE user_id = :userId AND friend_id = :friendId""";
+
+    private static final String USER_NOT_FOUND = "Пользователь с id = %d не найден";
 
     private final NamedParameterJdbcOperations jdbc;
     private final UserRowMapper mapper;
@@ -90,11 +121,11 @@ public class JdbcUserRepository implements UserRepositoryInterface {
         int updatedRows = jdbc.update(UPDATE_USER, params);
 
         if (updatedRows == 0) {
-            throw new DataAccessException("Не удалось обновить пользователя") {};
+            throw new NotFoundException(String.format(USER_NOT_FOUND, user.getId()));
         }
         return getUserById(user.getId())
-                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + user.getId()
-                        + " не найден после обновления"));
+                .orElseThrow(() ->
+                        new NotFoundException(String.format("%s %d после обновления", USER_NOT_FOUND, user.getId())));
     }
 
     @Override
@@ -117,11 +148,9 @@ public class JdbcUserRepository implements UserRepositoryInterface {
     @Override
     public void addFriend(Long userId, Long friendId) {
         try {
-            MapSqlParameterSource params = new MapSqlParameterSource()
+            jdbc.update(ADD_FRIEND, new MapSqlParameterSource()
                     .addValue("userId", userId, Types.BIGINT)
-                    .addValue("friendId", friendId, Types.BIGINT);
-
-            jdbc.update(ADD_FRIEND, params);
+                    .addValue("friendId", friendId, Types.BIGINT));
         } catch (DataAccessException e) {
             throw new InternalServerException("Не удалось добавить друга");
         }
@@ -130,11 +159,9 @@ public class JdbcUserRepository implements UserRepositoryInterface {
     @Transactional
     @Override
     public void deleteFriend(Long userId, Long friendId) {
-        jdbc.update(
-                "DELETE FROM friends WHERE user_id = :userId AND friend_id = :friendId",
-                new MapSqlParameterSource()
-                        .addValue("userId", userId, Types.BIGINT)
-                        .addValue("friendId", friendId, Types.BIGINT));
+        jdbc.update(DELETE_FRIEND, new MapSqlParameterSource()
+                .addValue("userId", userId, Types.BIGINT)
+                .addValue("friendId", friendId, Types.BIGINT));
     }
 
     @Override

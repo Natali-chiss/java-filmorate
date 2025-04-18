@@ -6,10 +6,10 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.stereotype.Repository;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.repository.mappers.MpaRowMapper;
 
-import java.util.Optional;
 import java.util.List;
 
 @Repository
@@ -28,14 +28,12 @@ public class JdbcMpaRepository implements MpaRepositoryInterface {
     }
 
     @Override
-    public Optional<Mpa> getById(int id) {
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("id", id);
+    public Mpa getById(int id) {
+        MapSqlParameterSource params = new MapSqlParameterSource("id", id);
         try {
-            Mpa result = jdbc.queryForObject(GET_BY_ID_SQL, params, mapper);
-            return Optional.ofNullable(result);
-        } catch (EmptyResultDataAccessException ignored) {
-            return Optional.empty();
+            return jdbc.queryForObject(GET_BY_ID_SQL, params, mapper);
+        } catch (EmptyResultDataAccessException e) {
+            throw new NotFoundException("Рейтинг не найден");
         }
     }
 }

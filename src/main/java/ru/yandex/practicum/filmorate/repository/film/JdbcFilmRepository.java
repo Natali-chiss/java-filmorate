@@ -68,22 +68,29 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
             WHERE user_id = :userId AND film_id = :filmId
             """;
     private static final String GET_POPULAR_FILMS = """
-                        SELECT
-                f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id,
-                g.genre_id, g.name as genre_name,
-                m.mpa_id as mpa_id, m.name as mpa_name,
-                l.likes_count
-            FROM films f
-            LEFT JOIN film_genres fg ON f.film_id = fg.film_id
-            LEFT JOIN genres g ON fg.genre_id = g.genre_id
-            LEFT JOIN mpa m ON f.mpa_id = m.mpa_id
-            LEFT JOIN (
-                SELECT film_id, COUNT(user_id) as likes_count
-                FROM likes
-                GROUP BY film_id
-            ) l ON f.film_id = l.film_id
-            ORDER BY l.likes_count DESC, f.film_id ASC
-            LIMIT :limit
+            SELECT
+                 f.film_id,
+                 f.name,
+                 f.description,
+                 f.release_date,
+                 f.duration,
+                 f.mpa_id,
+                 g.genre_id,
+                 g.name as genre_name,
+                 m.mpa_id as mpa_id,
+                 m.name as mpa_name,
+                 l.likes_count
+             FROM films f
+             LEFT JOIN film_genres fg ON f.film_id = fg.film_id
+             LEFT JOIN genres g ON fg.genre_id = g.genre_id
+             LEFT JOIN mpa m ON f.mpa_id = m.mpa_id
+             LEFT JOIN (
+                 SELECT film_id, COUNT(user_id) as likes_count
+                 FROM likes
+                 GROUP BY film_id
+             ) l ON f.film_id = l.film_id
+             ORDER BY l.likes_count DESC, f.film_id ASC
+             LIMIT :limit
             """;
     private static final String DELETE_GENRES = """
             DELETE FROM film_genres
@@ -99,6 +106,7 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
             WHERE film_id = :filmId
             ORDER BY user_id
             """;
+    private static final String FILM_NOT_FOUND = "Фильм с id = %d не найден";
 
     static {
         GET_FILM_BY_ID = """
@@ -118,6 +126,8 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
                 LEFT JOIN mpa m ON f.mpa_id = m.mpa_id
                 WHERE f.film_id = :id ORDER BY g.genre_id""";
     }
+
+    private static final int DEFAULT_POPULAR_FILMS_LIMIT = 10;
 
     private final NamedParameterJdbcOperations jdbc;
 
@@ -160,12 +170,13 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
 
         int updatedRows = jdbc.update(UPDATE_FILM, params);
         if (updatedRows == 0) {
-            throw new NotFoundException("Фильм с id=" + film.getId() + " не найден");
+            throw new NotFoundException(String.format(FILM_NOT_FOUND, film.getId()));
         }
 
         updateFilmGenres(film);
-        return getFilmById(film.getId()).orElseThrow(() -> new NotFoundException("Фильм с id=" + film.getId()
-                                                                                 + " не найден после обновления"));
+
+        return getFilmById(film.getId())
+                .orElseThrow(() -> new NotFoundException(String.format(FILM_NOT_FOUND, film.getId())));
     }
 
     @Override
@@ -183,7 +194,7 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
 
     @Override
     public List<Film> getTheMostPopularFilms(Integer count) {
-        int limit = (count == null || count <= 0) ? 10 : count;
+        int limit = (count == null || count <= 0) ? DEFAULT_POPULAR_FILMS_LIMIT : count;
         MapSqlParameterSource params = new MapSqlParameterSource().addValue("limit", limit);
         return jdbc.query(GET_POPULAR_FILMS, params, new FilmResultSetExtractor());
     }
@@ -192,7 +203,9 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
     @Override
     public void addLike(Long userId, Long filmId) {
         try {
-            MapSqlParameterSource params = new MapSqlParameterSource().addValue("filmId", filmId).addValue("userId", userId);
+            MapSqlParameterSource params = new MapSqlParameterSource()
+                    .addValue("filmId", filmId)
+                    .addValue("userId", userId);
             jdbc.update(ADD_LIKE, params);
         } catch (DataIntegrityViolationException e) {
             throw new DuplicatedDataException("Пользователь уже поставил лайк этому фильму");
@@ -202,7 +215,9 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
     @Transactional
     @Override
     public void removeLike(Long userId, Long filmId) {
-        MapSqlParameterSource params = new MapSqlParameterSource().addValue("filmId", filmId).addValue("userId", userId);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("filmId", filmId)
+                .addValue("userId", userId);
         int deletedRows = jdbc.update(REMOVE_LIKE, params);
         if (deletedRows == 0) {
             throw new NotFoundException("Лайк не найден");
@@ -244,7 +259,7 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
                 .distinct()
                 .toList();
 
-        String sql = "SELECT COUNT(*) FROM genres WHERE genre_id IN (:ids)";
+        String sql = "SELECT COUNT(genre_id) FROM genres WHERE genre_id IN (:ids)";
         Integer count = jdbc.queryForObject(sql,
                 new MapSqlParameterSource("ids", genreIds),
                 Integer.class);
@@ -257,7 +272,7 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
 
     private void validateMpaExists(Integer mpaId) {
         if (mpaId != null) {
-            String sql = "SELECT COUNT(*) FROM mpa WHERE mpa_id = :mpaId";
+            String sql = "SELECT COUNT(mpa_id) FROM mpa WHERE mpa_id = :mpaId";
             Integer count = jdbc.queryForObject(sql,
                     new MapSqlParameterSource("mpaId", mpaId),
                     Integer.class);
@@ -272,34 +287,37 @@ public class JdbcFilmRepository implements FilmRepositoryInterface {
         @Override
         public List<Film> extractData(ResultSet rs) throws SQLException {
             Map<Long, Film> filmsMap = new LinkedHashMap<>();
+            try {
+                while (rs.next()) {
+                    Long filmId = rs.getLong("film_id");
+                    Film film = filmsMap.computeIfAbsent(filmId, id -> {
+                        try {
+                            return Film.builder()
+                                    .id(rs.getLong("film_id"))
+                                    .name(rs.getString("name"))
+                                    .description(rs.getString("description"))
+                                    .releaseDate(rs.getObject("release_date", LocalDate.class))
+                                    .duration(rs.getInt("duration"))
+                                    .mpa(new Mpa(
+                                            rs.getInt("mpa_id"),
+                                            rs.getString("mpa_name")
+                                    ))
+                                    .genres(new ArrayList<>())
+                                    .build();
+                        } catch (SQLException e) {
+                            throw new InternalServerException("Ошибка при обработке данных фильма из БД");
+                        }
+                    });
 
-            while (rs.next()) {
-                Long filmId = rs.getLong("film_id");
-                Film film = filmsMap.computeIfAbsent(filmId, id -> {
-                    try {
-                        return Film.builder()
-                                .id(rs.getLong("film_id"))
-                                .name(rs.getString("name"))
-                                .description(rs.getString("description"))
-                                .releaseDate(rs.getObject("release_date", LocalDate.class))
-                                .duration(rs.getInt("duration"))
-                                .mpa(new Mpa(
-                                        rs.getInt("mpa_id"),
-                                        rs.getString("mpa_name")
-                                ))
-                                .genres(new ArrayList<>())
-                                .build();
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
+                    if (rs.getObject("genre_id") != null) {
+                        film.getGenres().add(new Genre(
+                                rs.getInt("genre_id"),
+                                rs.getString("genre_name")
+                        ));
                     }
-                });
-
-                if (rs.getObject("genre_id") != null) {
-                    film.getGenres().add(new Genre(
-                            rs.getInt("genre_id"),
-                            rs.getString("genre_name")
-                    ));
                 }
+            } catch (SQLException e) {
+                throw new InternalServerException("Ошибка при чтении данных из ResultSet");
             }
 
             return new ArrayList<>(filmsMap.values());

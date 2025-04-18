@@ -13,11 +13,11 @@ import java.util.List;
 @Builder
 public class FilmDto {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    Long id;
-    String name;
-    String description;
-    LocalDate releaseDate;
-    int duration;
+    private Long id;
+    private String name;
+    private String description;
+    private LocalDate releaseDate;
+    private int duration;
     private List<Genre> genres;
-    Mpa mpa;
+    private Mpa mpa;
 }

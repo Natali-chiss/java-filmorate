@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.repository.mpa.MpaRepositoryInterface;
 
@@ -19,20 +18,19 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class MpaController {
-    private final MpaRepositoryInterface ratingRepository;
+    private final MpaRepositoryInterface mpaRepository;
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     public List<Mpa> getAllRatings() {
         log.info("Получен запрос на получение списка всех рейтингов");
-        return ratingRepository.getAll();
+        return mpaRepository.getAll();
     }
 
     @GetMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
     public Mpa getRatingById(@PathVariable int id) {
         log.info("Получен запрос на получение рейтинга с id={}", id);
-        return ratingRepository.getById(id)
-                .orElseThrow(() -> new NotFoundException("Рейтинг с id=" + id + " не найден"));
+        return mpaRepository.getById(id);
     }
 }
